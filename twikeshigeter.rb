@@ -26,13 +26,23 @@ def home_timeline(client, date_b)
     search = client.home_timeline(count: 100)
     search.each do |tweet|
       if date_b.strftime("%Y/%m/%d %X") < tweet.created_at.strftime("%Y/%m/%d %X")
-        puts "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text} :by @#{tweet.user.screen_name}"
+        tweet_text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
+        puts "#{tweet_text} :by @#{tweet.user.screen_name}"
+        save("@#{tweet.user.screen_name}", tweet_text)
         # puts tweet.methods
       end
     end
   rescue Twitter::Error::TooManyRequests => error
     sleep error.rate_limit.reset_in
     retry
+  end
+end
+
+
+def save(user, text)
+  File::open("#{user}.txt", "a") do |file|
+    file.sync = true
+    file.puts text
   end
 end
 
