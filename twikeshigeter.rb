@@ -91,18 +91,16 @@ def main
   following_users = following(client)
   #/
   while true do
-    date_a = Time.now
-    if (date_a-date_b).to_i > 60
-      home_timeline(client, date_b)
-      date_b = date_a
-      #
-      following_users.each do |user|
-        sleep(40)
-        find_dtweet(client, user)
+    following_users.each do |user|
+      find_dtweet(client, user)
+      sleep(40)
+      date_a = Time.now
+      if (date_a-date_b).to_i > 60
+        home_timeline(client, date_b)
+        date_b = date_a
       end
-      #/
+      sleep(30)
     end
-    sleep(30)
   end
 end
 
