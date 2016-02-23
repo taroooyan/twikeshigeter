@@ -60,7 +60,7 @@ end
 
 def find_dtweet(client, user)
   tweets = client.user_timeline(user.screen_name, { count: 10})
-  # 消されたtweetをすでに出力しているかどうか. 1: している, 0: していない
+  # 消されたtweetをすでに出力しているかどうか. 1: y, 0: n
   printed_flag = 0
   tweets.each do |tweet|
     text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
@@ -68,22 +68,27 @@ def find_dtweet(client, user)
     if File.exist?("@#{user.screen_name}.txt")
       File::open("@#{user.screen_name}.txt", "r") do |file|
         file_tweets = file.each_line
+        # 消されたtweetかどうか 1: y, 0: n
         delete_flag = 1
         d_text = String.new
         file_tweets.each do |file_tweet|
-          # puts file_tweet
-          if file_tweet.chomp.casecmp(text) == 0
-            puts "No deleted #{file_tweet}"
+          ## 条件式について
+          # ファイルからは一行ずつ読み込んで利用(file_tweet)しているが,tweetに改行が
+          # 含まれていると複数行にわたって保存されている.
+          # しかし,今取得してきたtweet(text)には改行文字を含む1回分のすべてのtweetが
+          # 含まれているため以下のような条件式を利用している.
+          if text.chomp.include?(file_tweet.chomp)
+            puts "No deleted #{text} :by @#{user.screen_name}"
             delete_flag = 0
             break
           end
           d_text = file_tweet
         end #f_tweet.each
         if delete_flag == 1 && printed_flag == 0
-          puts "Deleted #{d_text}"
+          puts "Deleted #{d_text} :by @#{user.screen_name}"
           printed_flag = 1
         end
-      end #File
+      end #File::open
     end #if File.exsit
   end
 end
@@ -99,11 +104,8 @@ def main
     config.access_token_secret = ENV["ACCESS_TOKEN_SECRET"]
   end
 
-=begin
   date_b = Time.now
-  #
   following_users = following(client)
-  #/
   while true do
     following_users.each do |user|
       find_dtweet(client, user)
@@ -116,10 +118,7 @@ def main
       sleep(30)
     end
   end
-=end
-  client.update("開始")
-  initializetion(client)
-  client.update("終了")
+  # initializetion(client)
 end
 
 
