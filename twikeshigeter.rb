@@ -5,6 +5,11 @@ require 'dotenv'
 require 'slack'
 # progress
 $stdout.sync = true
+# Ctrl + C で停止させられた場合の処理を登録
+Signal.trap(:INT){
+    puts " SIGINT"
+      exit(0)
+}
 
 
 def progress_bar(i, max = 100)
@@ -19,6 +24,7 @@ def progress_bar(i, max = 100)
   print "\r#{bar_str} #{'%5s' % progress_num}%"
 end
 # /progress
+
 
 def following(client)
   # followings = []
@@ -65,6 +71,7 @@ def find_dtweet(client, user)
   tweets = client.user_timeline(user.screen_name, { count: 10})
   # 消されたtweetをすでに出力しているかどうか. 1: y, 0: n
   printed_flag = 0
+  # tweet数が100未満のユーザに対しておかしくなる。
   tweets.each do |tweet|
     text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
     # ファイルが存在するかどうか
@@ -82,6 +89,7 @@ def find_dtweet(client, user)
           # 含まれているため以下のような条件式を利用している.
           if text.chomp.include?(file_tweet.chomp)
             # notice_slack("No deleted #{text} :by @#{user.screen_name}")
+            puts ("No deleted #{text} :by @#{user.screen_name}")
             delete_flag = 0
             break
           end
@@ -93,7 +101,7 @@ def find_dtweet(client, user)
         end
       end #File::open
     end #if File.exsit
-  end
+  end #tweet.each
 end
 
 
@@ -113,16 +121,17 @@ end
 
 # send to slack of #deleted-tweet channel
 def notice_slack(message)
-  Slack.configure { |config|
+  Slack.configure do |config|
     Dotenv.load
     config.token = ENV["SLACK_API_TOKEN"]
-  }
+  end
   Slack.chat_postMessage(text: message, channel: '#deleted-tweet')
 end
 
-def main
-  Dotenv.load
 
+def main
+
+  Dotenv.load
   client = Twitter::REST::Client.new do |config|
     config.consumer_key = ENV["CONSUMER_KEY"]
     config.consumer_secret = ENV["CONSUMER_SECRET"]
@@ -151,5 +160,6 @@ def main
   end
   # initializetion(client)
 end
+
 
 main()
