@@ -81,7 +81,7 @@ def find_dtweet(client, user)
           # しかし,今取得してきたtweet(text)には改行文字を含む1回分のすべてのtweetが
           # 含まれているため以下のような条件式を利用している.
           if text.chomp.include?(file_tweet.chomp)
-            notice_slack("No deleted #{text} :by @#{user.screen_name}")
+            # notice_slack("No deleted #{text} :by @#{user.screen_name}")
             delete_flag = 0
             break
           end
@@ -130,9 +130,11 @@ def main
     config.access_token_secret = ENV["ACCESS_TOKEN_SECRET"]
   end
 
-  notice_slack("[Startup] twikeshigeterb")
+  notice_slack("[Startup] twikeshigeter")
   date_b = Time.now
   following_users = following(client)
+  # TLの取得回数
+  count = 0
   while true do
     following_users.each do |user|
       find_dtweet(client, user)
@@ -141,6 +143,8 @@ def main
       if (date_a-date_b).to_i > 60
         home_timeline(client, date_b)
         date_b = date_a
+        count += 1
+        notice_slack("[Running] #{count}回目の取得成功}") if count%60 == 0
       end
       sleep(30)
     end
