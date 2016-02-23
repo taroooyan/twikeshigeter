@@ -2,8 +2,11 @@
 require 'twitter'
 require 'date'
 require 'dotenv'
+require 'slack'
 # progress
 $stdout.sync = true
+
+
 def progress_bar(i, max = 100)
   i = max if i > max
   rest_size = 1 + 5 + 1      # space + progress_num + %
@@ -78,47 +81,19 @@ def find_dtweet(client, user)
           # しかし,今取得してきたtweet(text)には改行文字を含む1回分のすべてのtweetが
           # 含まれているため以下のような条件式を利用している.
           if text.chomp.include?(file_tweet.chomp)
-            puts "No deleted #{text} :by @#{user.screen_name}"
+            notice_slack("No deleted #{text} :by @#{user.screen_name}")
             delete_flag = 0
             break
           end
           d_text = file_tweet
         end #f_tweet.each
         if delete_flag == 1 && printed_flag == 0
-          puts "Deleted #{d_text} :by @#{user.screen_name}"
+          notice_slack("Deleted #{d_text} :by @#{user.screen_name}")
           printed_flag = 1
         end
       end #File::open
     end #if File.exsit
   end
-end
-
-
-def main
-  Dotenv.load
-
-  client = Twitter::REST::Client.new do |config|
-    config.consumer_key = ENV["CONSUMER_KEY"]
-    config.consumer_secret = ENV["CONSUMER_SECRET"]
-    config.access_token = ENV["ACCESS_TOKEN"]
-    config.access_token_secret = ENV["ACCESS_TOKEN_SECRET"]
-  end
-
-  date_b = Time.now
-  following_users = following(client)
-  while true do
-    following_users.each do |user|
-      find_dtweet(client, user)
-      sleep(40)
-      date_a = Time.now
-      if (date_a-date_b).to_i > 60
-        home_timeline(client, date_b)
-        date_b = date_a
-      end
-      sleep(30)
-    end
-  end
-  # initializetion(client)
 end
 
 
@@ -136,5 +111,41 @@ def initializetion(client)
   end
 end
 
+# send to slack of #deleted-tweet channel
+def notice_slack(message)
+  Slack.configure { |config|
+    Dotenv.load
+    config.token = ENV["SLACK_API_TOKEN"]
+  }
+  Slack.chat_postMessage(text: message, channel: '#deleted-tweet')
+end
+
+def main
+  Dotenv.load
+
+  client = Twitter::REST::Client.new do |config|
+    config.consumer_key = ENV["CONSUMER_KEY"]
+    config.consumer_secret = ENV["CONSUMER_SECRET"]
+    config.access_token = ENV["ACCESS_TOKEN"]
+    config.access_token_secret = ENV["ACCESS_TOKEN_SECRET"]
+  end
+
+  notice_slack("[Startup] twikeshigeterb")
+  date_b = Time.now
+  following_users = following(client)
+  while true do
+    following_users.each do |user|
+      find_dtweet(client, user)
+      sleep(40)
+      date_a = Time.now
+      if (date_a-date_b).to_i > 60
+        home_timeline(client, date_b)
+        date_b = date_a
+      end
+      sleep(30)
+    end
+  end
+  # initializetion(client)
+end
 
 main()
