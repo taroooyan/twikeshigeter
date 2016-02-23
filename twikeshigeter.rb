@@ -2,7 +2,20 @@
 require 'twitter'
 require 'date'
 require 'dotenv'
-
+# progress
+$stdout.sync = true
+def progress_bar(i, max = 100)
+  i = max if i > max
+  rest_size = 1 + 5 + 1      # space + progress_num + %
+  bar_width = 79 - rest_size # (width - 1) - rest_size = 72
+  percent = i * 100.0 / max
+  bar_length = i * bar_width.to_f / max
+  bar_str = ('#' * bar_length).ljust(bar_width)
+#  bar_str = '%-*s' % [bar_width, ('#' * bar_length)]
+  progress_num = '%3.1f' % percent
+  print "\r#{bar_str} #{'%5s' % progress_num}%"
+end
+# /progress
 
 def following(client)
   # followings = []
@@ -86,6 +99,7 @@ def main
     config.access_token_secret = ENV["ACCESS_TOKEN_SECRET"]
   end
 
+=begin
   date_b = Time.now
   #
   following_users = following(client)
@@ -101,6 +115,25 @@ def main
       end
       sleep(30)
     end
+  end
+=end
+  client.update("開始")
+  initializetion(client)
+  client.update("終了")
+end
+
+
+# フォロー中のユーザのtweetを100まで取得して保存する
+def initializetion(client)
+  followings = following(client)
+  followings.each_with_index do |user, i|
+    tweets = client.user_timeline(user.screen_name, { count: 100})
+    tweets.each do |tweet|
+      text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
+      save("@#{tweet.user.screen_name}", text)
+    end
+    progress_bar(i, followings.size)
+    sleep(60)
   end
 end
 
