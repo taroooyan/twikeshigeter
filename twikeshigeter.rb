@@ -86,7 +86,7 @@ class TwitterInfo
     ## ファイルから逆順に一行ずつ読み込みlines格納し、linesの先頭100行を取る
     ## ことでファイルから逆順で100行をlinesに格納することを実現している
     # ファイルが存在するかどうか
-    if File.exist?("@#{user.screen_name}.txt")
+    if File.exist?("#{user.screen_name}.txt")
       file_lines = String.new
       File::open("#{user.screen_name}.txt", "r") { |f| file_lines = f.read }
       file_lines.split("\n").each do |line|
