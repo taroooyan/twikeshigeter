@@ -103,7 +103,9 @@ class TwitterInfo
       # ファイルにあってタイムラインに無いもののみを表示
       p delete_tweets =  lines - tweets
       # slackに一回で投稿するため
-      notice_slack("[Deleted] @#{user.screen_name}\n#{delete_tweets.join("\n")}")
+      unless delete_tweets.empty?
+        notice_slack("[Deleted] @#{user.screen_name}\n#{delete_tweets.join("\n")}")
+      end
       puts '-'*80
     else
       File::open("#{user.screen_name}.txt", "w") do |file|
