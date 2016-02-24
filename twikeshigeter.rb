@@ -97,20 +97,19 @@ class TwitterInfo
         end
       end
       lines = lines.slice(0,99)
+      puts '-'*80
+      p lines
+      puts '-'*80
+      # ファイルにあってタイムラインに無いもののみを表示
+      p delete_tweets =  lines - tweets
+      # slackに一回で投稿するため
+      notice_slack("[Deleted] @#{user.screen_name}\n#{delete_tweets.join("\n")}")
+      puts '-'*80
     else
       File::open("#{user.screen_name}.txt", "w") do |file|
       end
     end # /File.exist?
     ## /
-
-    puts '-'*80
-    p lines
-    puts '-'*80
-    # ファイルにあってタイムラインに無いもののみを表示
-    p delete_tweets =  lines - tweets
-    # slackに一回で投稿するため
-    notice_slack("[Deleted] @#{user.screen_name}\n#{delete_tweets.join("\n")}")
-    puts '-'*80
   end
 end
 
