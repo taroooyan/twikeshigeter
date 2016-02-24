@@ -24,6 +24,25 @@ def progress_bar(i, max = 100)
 end
 
 
+# send to slack of #deleted-tweet channel
+def notice_slack(message)
+  Slack.configure do |config|
+    Dotenv.load
+    config.token = ENV["SLACK_API_TOKEN"]
+  end
+  Slack.chat_postMessage(text: message, channel: '#deleted-tweet')
+end
+
+
+# user別にtxtファイルに保存
+def save(username, text)
+  File::open("#{username}.txt", "a") do |file|
+    file.sync = true
+    file.puts text
+  end
+end
+
+
 def following(client)
   # followings = []
   following_ids = client.friend_ids("taroooyan").to_a
@@ -44,23 +63,14 @@ def home_timeline(client, date_b)
     search = client.home_timeline(count: 100)
     search.each do |tweet|
       if date_b.strftime("%Y/%m/%d %X") < tweet.created_at.strftime("%Y/%m/%d %X")
-      # if true
         text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
-        # puts "TL #{text} :by @#{tweet.user.screen_name}"
+        puts "TL #{text} :by @#{tweet.user.screen_name}"
         save("@#{tweet.user.screen_name}", text)
       end
     end
   rescue Twitter::Error::TooManyRequests => error
     sleep error.rate_limit.reset_in
     retry
-  end
-end
-
-# user別にtxtファイルに保存
-def save(username, text)
-  File::open("#{username}.txt", "a") do |file|
-    file.sync = true
-    file.puts text
   end
 end
 
@@ -79,13 +89,52 @@ def initializetion(client)
   end
 end
 
-# send to slack of #deleted-tweet channel
-def notice_slack(message)
-  Slack.configure do |config|
-    Dotenv.load
-    config.token = ENV["SLACK_API_TOKEN"]
+
+
+def find_dtweet(client, user)
+  tweets = Array.new
+  lines = Array.new
+  delete_tweets = Array.new
+  ## userの100件のタイムラインをtweetsに格納
+  ## ツイートに改行が含まれている際の処理を改行で区切って対処することにする
+  user_all_info = client.user_timeline(user.screen_name, { count: 100})
+  user_all_info.each do |user_info|
+    text = "#{user_info.created_at.strftime("%Y/%m/%d %X")}: #{user_info.text}".split("\n")
+    tweets.push(text)
   end
-  Slack.chat_postMessage(text: message, channel: '#deleted-tweet')
+  tweets.flatten!
+  p tweets
+  ## /
+
+  ## ファイルから40行だけ逆順に一行ずつ読み込みlines格納
+  # ファイルが存在するかどうか
+  if File.exist?("@#{user.screen_name}.txt")
+    File::open("@#{user.screen_name}.txt", "r") do |file|
+      file_lines = file.each_line
+      file_lines.each_with_index do |line, i|
+        if i > 40
+          break
+        elsif line == "\n"
+          next
+        else
+          lines.unshift(line.chomp)
+        end
+      end
+    end # /File::open
+  else
+    File::open("@#{user.screen_name}.txt", "w") do |file|
+    end
+  end # /File.exist
+  ## /
+  puts '-'*80
+  p lines
+  puts '-'*80
+  # ファイルにあってタイムラインに無いもののみを表示
+  p delete_tweets =  lines - tweets
+  delete_tweets.each do |delete_tweet|
+    notice_slack("#{delete_tweet} :by @#{user.screen_name}")
+  end
+  puts '-'*80
 end
 
 
@@ -120,15 +169,6 @@ def main
 end
 
 
-def create_user_file(client)
-  followings = following(client)
-  followings.each_with_index do |follower, i|
-    text = ""
-    save("@#{follower.screen_name}", text)
-  end
-end
-
-
 def test
   Dotenv.load
   client = Twitter::REST::Client.new do |config|
@@ -139,50 +179,6 @@ def test
   end
   find_dtweet(client, client.user("USER"))
   # initializetion(client)
-end
-
-
-def find_dtweet(client, user)
-  tweets = Array.new
-  lines = Array.new
-  delete_tweets = Array.new
-  ## userの100件のタイムラインをtweetsに格納
-  ## ツイートに改行が含まれている際の処理を改行で区切って対処することにする
-  user_all_info = client.user_timeline(user.screen_name, { count: 100})
-  user_all_info.each do |user_info|
-    text = "#{user_info.created_at.strftime("%Y/%m/%d %X")}: #{user_info.text}".split("\n")
-    tweets.push(text)
-  end
-  tweets.flatten!
-  p tweets
-  ## /
-
-  ## ファイルから40行だけ逆順に一行ずつ読み込みlines格納
-  # ファイルが存在するかどうか
-  if File.exist?("@#{user.screen_name}.txt")
-    File::open("@#{user.screen_name}.txt", "r") do |file|
-      file_lines = file.each_line
-      file_lines.each_with_index do |line, i|
-        if i > 40
-          break
-        elsif line == "\n"
-          next
-        else
-          lines.unshift(line.chomp)
-        end
-      end
-    end # /File
-  end # /if
-  ## /
-  puts '-'*80
-  p lines
-  puts '-'*80
-  # ファイルにあってタイムラインに無いもののみを表示
-  p delete_tweets =  lines - tweets
-  delete_tweets.each do |delete_tweet|
-    notice_slack("#{delete_tweet} :by @#{user.screen_name}")
-  end
-  puts '-'*80
 end
 
 
