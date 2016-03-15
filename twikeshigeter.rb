@@ -29,6 +29,7 @@ end
 
 class TwitterInfo
   def initialize
+    @@accse_count = 0
     Dotenv.load
     @client = Twitter::REST::Client.new do |config|
       config.consumer_key = ENV["CONSUMER_KEY"]
@@ -40,6 +41,8 @@ class TwitterInfo
 
   def following
     following_ids = @client.friend_ids.to_a
+    p Time.now
+    p @@accse_count += 1
     begin
       followings = following_ids.each_slice(100).to_a.inject ([]) do |users, ids|
         users.concat(@client.users(ids))
@@ -55,10 +58,12 @@ class TwitterInfo
   def home_timeline(date_b)
     begin
       timelines = @client.home_timeline(count: 100)
+      p Time.now
+      p @@accse_count += 1
       timelines.each do |tweet|
         if date_b.strftime("%Y/%m/%d %X") < tweet.created_at.strftime("%Y/%m/%d %X")
           text = "#{tweet.created_at.strftime("%Y/%m/%d %X")}: #{tweet.text}"
-          puts "TL #{text} :by @#{tweet.user.screen_name}"
+          # puts "TL #{text} :by @#{tweet.user.screen_name}"
           save(tweet.user.screen_name, text)
         end
       end
@@ -75,12 +80,14 @@ class TwitterInfo
     ## userの100件のタイムラインをtweetsに格納
     ## ツイートに改行が含まれている際の処理を改行で区切って対処することにする
     user_all_info = @client.user_timeline(user.screen_name, { count: 100})
+    p Time.now
+    p @@accse_count += 1
     user_all_info.each do |user_info|
       text = "#{user_info.created_at.strftime("%Y/%m/%d %X")}: #{user_info.text}".split("\n")
       tweets.push(text)
     end
     tweets.flatten!
-    p tweets
+    # p tweets
     ## /
 
     ## ファイルから逆順に一行ずつ読み込みlines格納し、linesの先頭100行を取る
@@ -97,16 +104,16 @@ class TwitterInfo
         end
       end
       lines = lines.slice(0,99)
-      puts '-'*80
-      p lines
-      puts '-'*80
+      # puts '-'*80
+      # p lines
+      # puts '-'*80
       # ファイルにあってタイムラインに無いもののみを表示
       p delete_tweets =  lines - tweets
       # slackに一回で投稿するため
       unless delete_tweets.empty?
         notice_slack("[Deleted] @#{user.screen_name}\n#{delete_tweets.join("\n")}")
       end
-      puts '-'*80
+      # puts '-'*80
     else
       File::open("#{user.screen_name}.txt", "w") do |file|
       end
@@ -124,16 +131,18 @@ def main
   count = 0
   loop do
     following_users.each do |user|
-      twitter.find_dtweet(user)
-      sleep(40)
-      date_after = Time.now
-      if (date_after-date_before).to_i > 60
-        twitter.home_timeline(date_before)
-        date_before = date_after
-        count += 1
-        notice_slack("[Running] #{count}回目のTL取得}") if count%60 == 0
+      if count%5 == 0
+        twitter.find_dtweet(user)
+        sleep(65)
       end
-      sleep(30)
+      date_after = Time.now
+      # if (date_after-date_before).to_i > 90
+      twitter.home_timeline(date_before)
+      date_before = date_after
+      count += 1
+      notice_slack("[Running] #{count}回目のTL取得}") if count%60 == 0
+      sleep(40)
+      # end
     end
   end # /loop
 end
